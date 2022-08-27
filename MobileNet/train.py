@@ -53,12 +53,16 @@ pre_dict = {k: v for k, v in pre_weights.items() if net.state_dict()[k].numel() 
 missing_keys, unexpected_keys = net.load_state_dict(pre_dict, strict=False)
 
 # freeze features weights
+# 实际上只是不计算梯度罢了
 for param in net.features.parameters():
     param.requires_grad = False
 
 net.to(device)
 loss_func = nn.CrossEntropyLoss()
-optimizer = optim.Adam(net.parameters(), lr=1e-3)
+
+# 不去优化预训练特征提取参数
+params = [p for p in net.parameters() if p.requires_grad]
+optimizer = optim.Adam(params, lr=1e-4)
 
 best_acc = 0.0
 save_path = './MobileNetV2.pth'
@@ -90,9 +94,8 @@ for epoch in range(epochs):
             # loss = loss_function(outputs, test_labels)
             predict_y = torch.max(outputs, dim=1)[1]
             acc += torch.eq(predict_y, val_labels.to(device)).sum().item()
-
-            print("valid epoch[{}/{}]".format(epoch + 1, epochs))
-    val_accurate = acc / len(test_dataLoader)
+            print("test epoch[{}/{}]".format(epoch + 1, epochs))
+    val_accurate = acc / len(test_dataset)
     print('[epoch %d] train_loss: %.3f  val_accuracy: %.3f' % (epoch + 1, running_loss / train_steps, val_accurate))
 
     if val_accurate > best_acc:
